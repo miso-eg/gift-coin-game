@@ -147,32 +147,30 @@ export default function GamePage() {
           ? isWithinTolerance(currentInputNumber, currentGift.coin, TOLERANCE_RATE)
           : currentInputNumber === currentGift.coin);
 
-  useEffect(() => {
-    if (!timeLimitEnabled || isAnswered || !currentGift) {
-      return;
-    }
+useEffect(() => {
+  if (!timeLimitEnabled || isAnswered || !currentGift) {
+    return;
+  }
 
-    setTimeLeft(TIME_LIMIT_SECONDS);
+  const timerId = window.setInterval(() => {
+    setTimeLeft((prev) => {
+      if (prev <= 1) {
+        window.clearInterval(timerId);
+        setResultMessage(
+          `時間切れ。不正解です。正解は ${currentGift.coin} コインです。`
+        );
+        setIsAnswered(true);
+        return 0;
+      }
 
-    const timerId = window.setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          window.clearInterval(timerId);
-          setResultMessage(
-            `時間切れ。不正解です。正解は ${currentGift.coin} コインです。`
-          );
-          setIsAnswered(true);
-          return 0;
-        }
+      return prev - 1;
+    });
+  }, 1000);
 
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => {
-      window.clearInterval(timerId);
-    };
-  }, [currentQuestionIndex, timeLimitEnabled, isAnswered, currentGift]);
+  return () => {
+    window.clearInterval(timerId);
+  };
+}, [timeLimitEnabled, isAnswered, currentGift]);
 
   const finishGame = () => {
     const totalForResult =
