@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { gifts } from "../../data/gifts";
-import { Gift } from "../../types/gift";
+import type { Gift } from "@/types/gift";
 
 type GameMode = "multiple" | "input";
 type PlayMode = "normal" | "streak";
