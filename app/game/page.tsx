@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Gift } from "@/types/gift";
 import { gifts } from "@/data/gifts";
@@ -82,7 +82,7 @@ function isWithinTolerance(
   return Math.abs(answer - correct) <= margin;
 }
 
-export default function GamePage() {
+function GamePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -218,9 +218,7 @@ export default function GamePage() {
       }
       setResultMessage("正解です。");
     } else {
-      setResultMessage(
-        `不正解です。正解は ${currentGift.coin} コインです。`
-      );
+      setResultMessage(`不正解です。正解は ${currentGift.coin} コインです。`);
     }
 
     setIsAnswered(true);
@@ -270,9 +268,7 @@ export default function GamePage() {
           `不正解です。正解は ${currentGift.coin} コインです。正解範囲は ${minValue}〜${maxValue} コインです。`
         );
       } else {
-        setResultMessage(
-          `不正解です。正解は ${currentGift.coin} コインです。`
-        );
+        setResultMessage(`不正解です。正解は ${currentGift.coin} コインです。`);
       }
     }
 
@@ -317,9 +313,7 @@ export default function GamePage() {
           <div>
             <p className="text-sm font-medium text-gray-500">ゲーム中</p>
             <h1 className="mt-1 text-2xl font-bold text-gray-900">
-              {playMode === "streak"
-                ? "連続ランキングモード"
-                : "このギフトのコイン数は？"}
+              {playMode === "streak" ? "連続ランキングモード" : "このギフトのコイン数は？"}
             </h1>
           </div>
 
@@ -379,13 +373,9 @@ export default function GamePage() {
           </div>
 
           {showGiftName ? (
-            <p className="mt-5 text-3xl font-bold text-gray-900">
-              {currentGift.name}
-            </p>
+            <p className="mt-5 text-3xl font-bold text-gray-900">{currentGift.name}</p>
           ) : (
-            <p className="mt-5 text-sm font-medium text-gray-500">
-              ギフト名は非表示です
-            </p>
+            <p className="mt-5 text-sm font-medium text-gray-500">ギフト名は非表示です</p>
           )}
         </div>
 
@@ -407,9 +397,7 @@ export default function GamePage() {
                   )}
                 >
                   <span className="block text-sm text-gray-500">コイン数</span>
-                  <span className="mt-1 block text-lg font-bold">
-                    {choice} コイン
-                  </span>
+                  <span className="mt-1 block text-lg font-bold">{choice} コイン</span>
                 </button>
               ))}
             </div>
@@ -453,8 +441,7 @@ export default function GamePage() {
 
             {!showGiftName && (
               <p className="mt-2 text-sm">
-                ギフト名:{" "}
-                <span className="font-semibold">{currentGift.name}</span>
+                ギフト名: <span className="font-semibold">{currentGift.name}</span>
               </p>
             )}
           </div>
@@ -464,13 +451,11 @@ export default function GamePage() {
           <div className="rounded-xl border bg-gray-50 px-4 py-3 text-sm text-gray-700">
             {playMode === "streak" ? (
               <>
-                現在の連続正解数:{" "}
-                <span className="font-bold text-gray-900">{streakCount}</span>
+                現在の連続正解数: <span className="font-bold text-gray-900">{streakCount}</span>
               </>
             ) : (
               <>
-                現在の正解数:{" "}
-                <span className="font-bold text-gray-900">{correctCount}</span>
+                現在の正解数: <span className="font-bold text-gray-900">{correctCount}</span>
               </>
             )}
           </div>
@@ -490,5 +475,21 @@ export default function GamePage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function GamePage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-gray-50 px-6 py-10">
+          <div className="mx-auto max-w-3xl rounded-3xl border bg-white p-8 shadow-sm">
+            <p className="text-gray-700">読み込み中です。</p>
+          </div>
+        </main>
+      }
+    >
+      <GamePageContent />
+    </Suspense>
   );
 }
