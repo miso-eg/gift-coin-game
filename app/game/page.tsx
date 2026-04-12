@@ -3,17 +3,16 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { gifts } from "../../data/gifts";
 import type { Gift } from "@/types/gift";
+import { gifts } from "@/data/gifts";
 
 type GameMode = "multiple" | "input";
 type PlayMode = "normal" | "streak";
 
 const TOLERANCE_RATE = 0.1;
 const TIME_LIMIT_SECONDS = 30;
-const STREAK_QUESTION_LIMIT = 9999;
 
 function shuffleArray<T>(items: T[]): T[] {
   const copied = [...items];
@@ -74,7 +73,11 @@ function getResultBoxClassName(isCorrect: boolean): string {
   return "mt-6 rounded-2xl border border-red-600 bg-red-50 p-5 text-red-900";
 }
 
-function isWithinTolerance(answer: number, correct: number, toleranceRate: number): boolean {
+function isWithinTolerance(
+  answer: number,
+  correct: number,
+  toleranceRate: number
+): boolean {
   const margin = correct * toleranceRate;
   return Math.abs(answer - correct) <= margin;
 }
@@ -92,11 +95,7 @@ export default function GamePage() {
 
   const playMode: PlayMode = playModeParam === "streak" ? "streak" : "normal";
   const questionCount =
-    playMode === "streak"
-      ? STREAK_QUESTION_LIMIT
-      : Number.isNaN(requestedCount) || requestedCount <= 0
-        ? 5
-        : requestedCount;
+    Number.isNaN(requestedCount) || requestedCount <= 0 ? 5 : requestedCount;
 
   const showGiftName = playMode === "streak" ? true : showNameParam === "true";
   const gameMode: GameMode =
@@ -110,12 +109,9 @@ export default function GamePage() {
   const timeLimitEnabled =
     playMode === "streak" ? true : timeLimitParam === "true";
 
-  const gameGifts = useMemo(() => {
-    if (playMode === "streak") {
-      return shuffleArray(gifts);
-    }
-    return shuffleArray(gifts).slice(0, questionCount);
-  }, [questionCount, playMode]);
+  const [gameGifts, setGameGifts] = useState<Gift[]>([]);
+  const [choices, setChoices] = useState<number[]>([]);
+  const [isReady, setIsReady] = useState(false);
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [correctCount, setCorrectCount] = useState(0);
@@ -128,13 +124,36 @@ export default function GamePage() {
 
   const currentGift = gameGifts[currentQuestionIndex];
 
-  const choices = useMemo(() => {
+  useEffect(() => {
+    const nextGameGifts =
+      playMode === "streak"
+        ? shuffleArray(gifts)
+        : shuffleArray(gifts).slice(0, questionCount);
+
+    setGameGifts(nextGameGifts);
+    setCurrentQuestionIndex(0);
+    setCorrectCount(0);
+    setStreakCount(0);
+    setIsAnswered(false);
+    setResultMessage("");
+    setSelectedChoice(null);
+    setInputAnswer("");
+    setTimeLeft(TIME_LIMIT_SECONDS);
+    setIsReady(true);
+  }, [playMode, questionCount]);
+
+  useEffect(() => {
     if (!currentGift) {
-      return [];
+      setChoices([]);
+      return;
     }
 
-    return createChoices(currentGift, gifts);
-  }, [currentGift]);
+    if (gameMode === "multiple") {
+      setChoices(createChoices(currentGift, gifts));
+    } else {
+      setChoices([]);
+    }
+  }, [currentGift, gameMode]);
 
   const currentInputNumber =
     inputAnswer.trim() === "" ? null : Number(inputAnswer);
@@ -149,37 +168,37 @@ export default function GamePage() {
           ? isWithinTolerance(currentInputNumber, currentGift.coin, TOLERANCE_RATE)
           : currentInputNumber === currentGift.coin);
 
-useEffect(() => {
-  if (!timeLimitEnabled || isAnswered || !currentGift) {
-    return;
-  }
+  useEffect(() => {
+    if (!timeLimitEnabled || isAnswered || !currentGift || !isReady) {
+      return;
+    }
 
-  const timerId = window.setInterval(() => {
-    setTimeLeft((prev) => {
-      if (prev <= 1) {
-        window.clearInterval(timerId);
-        setResultMessage(
-          `時間切れ。不正解です。正解は ${currentGift.coin} コインです。`
-        );
-        setIsAnswered(true);
-        return 0;
-      }
+    const timerId = window.setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          window.clearInterval(timerId);
+          setResultMessage(
+            `時間切れ。不正解です。正解は ${currentGift.coin} コインです。`
+          );
+          setIsAnswered(true);
+          return 0;
+        }
 
-      return prev - 1;
-    });
-  }, 1000);
+        return prev - 1;
+      });
+    }, 1000);
 
-  return () => {
-    window.clearInterval(timerId);
-  };
-}, [timeLimitEnabled, isAnswered, currentGift]);
+    return () => {
+      window.clearInterval(timerId);
+    };
+  }, [timeLimitEnabled, isAnswered, currentGift, isReady]);
 
   const finishGame = () => {
     const totalForResult =
-      playMode === "streak" ? streakCount + 1 : gameGifts.length;
+      playMode === "streak" ? streakCount + (isCurrentAnswerCorrect ? 0 : 1) : gameGifts.length;
 
     router.push(
-      `/result?playMode=${playMode}&correct=${correctCount}&total=${totalForResult}&count=${requestedCount}&showName=${showGiftName}&mode=${gameMode}&allowTolerance=${allowTolerance}&timeLimit=${timeLimitEnabled}&streak=${streakCount}`
+      `/result?playMode=${playMode}&correct=${correctCount}&total=${totalForResult}&count=${questionCount}&showName=${showGiftName}&mode=${gameMode}&allowTolerance=${allowTolerance}&timeLimit=${timeLimitEnabled}&streak=${streakCount}`
     );
   };
 
@@ -281,22 +300,11 @@ useEffect(() => {
     setTimeLeft(TIME_LIMIT_SECONDS);
   };
 
-  if (gameGifts.length === 0 || !currentGift) {
+  if (!isReady || gameGifts.length === 0 || !currentGift) {
     return (
       <main className="min-h-screen bg-gray-50 px-6 py-10">
         <div className="mx-auto max-w-3xl rounded-3xl border bg-white p-8 shadow-sm">
-          <h1 className="text-2xl font-bold text-gray-900">
-            出題できる問題がありません
-          </h1>
-          <p className="mt-4 text-gray-700">ギフトデータを確認してください。</p>
-          <div className="mt-6">
-            <Link
-              href="/"
-              className="rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-800 transition hover:bg-gray-50"
-            >
-              トップへ戻る
-            </Link>
-          </div>
+          <p className="text-gray-700">読み込み中です。</p>
         </div>
       </main>
     );
@@ -370,9 +378,15 @@ useEffect(() => {
             </div>
           </div>
 
-          <p className="mt-5 text-3xl font-bold text-gray-900">
-            {currentGift.name}
-          </p>
+          {showGiftName ? (
+            <p className="mt-5 text-3xl font-bold text-gray-900">
+              {currentGift.name}
+            </p>
+          ) : (
+            <p className="mt-5 text-sm font-medium text-gray-500">
+              ギフト名は非表示です
+            </p>
+          )}
         </div>
 
         {gameMode === "multiple" ? (
@@ -382,7 +396,7 @@ useEffect(() => {
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               {choices.map((choice) => (
                 <button
-                  key={choice}
+                  key={`${currentQuestionIndex}-${choice}`}
                   onClick={() => handleSelectChoice(choice)}
                   disabled={isAnswered}
                   className={getChoiceButtonClassName(
@@ -436,6 +450,13 @@ useEffect(() => {
         {resultMessage !== "" && (
           <div className={getResultBoxClassName(isCurrentAnswerCorrect)}>
             <p className="text-base font-semibold">{resultMessage}</p>
+
+            {!showGiftName && (
+              <p className="mt-2 text-sm">
+                ギフト名:{" "}
+                <span className="font-semibold">{currentGift.name}</span>
+              </p>
+            )}
           </div>
         )}
 

@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -32,7 +34,9 @@ export default function RankingPage() {
       setLoading(false);
 
       if (error) {
-        setErrorMessage("ランキングの取得に失敗しました。");
+        setErrorMessage(
+          "ランキングの取得に失敗しました。時間をおいて再度お試しください。"
+        );
         return;
       }
 
@@ -59,9 +63,7 @@ export default function RankingPage() {
         </header>
 
         <section className="mt-8 rounded-2xl border bg-gray-50 p-6">
-          <h2 className="text-lg font-semibold text-gray-900">
-            ルール
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-900">ルール</h2>
           <ul className="mt-4 space-y-2 text-sm text-gray-700">
             <li>・対象は連続ランキングモードです</li>
             <li>・連続正解数が高い順に並びます</li>
@@ -101,12 +103,11 @@ export default function RankingPage() {
                       {index + 1}
                     </div>
 
-                    <div className="text-gray-900">
-                      {record.player_name}
-                    </div>
+                    <div className="text-gray-900">{record.player_name}</div>
 
                     <div className="text-gray-600">
-                      {record.tiktok_username && record.tiktok_username.trim() !== ""
+                      {record.tiktok_username &&
+                      record.tiktok_username.trim() !== ""
                         ? record.tiktok_username
                         : "-"}
                     </div>
