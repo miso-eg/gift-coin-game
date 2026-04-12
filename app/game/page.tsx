@@ -255,7 +255,7 @@ function GamePageContent() {
         const minValue = Math.ceil(currentGift.coin * (1 - TOLERANCE_RATE));
         const maxValue = Math.floor(currentGift.coin * (1 + TOLERANCE_RATE));
         setResultMessage(
-          `正解です。許容範囲（${minValue}〜${maxValue} コイン）内です。`
+          `正解です。正解は ${currentGift.coin} コインです。許容範囲（${minValue}〜${maxValue} コイン）内です。`
         );
       } else {
         setResultMessage("正解です。");
