@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { gifts } from "../../data/gifts";
 import { Gift } from "../../types/gift";
 
 type GameMode = "multiple" | "input";
+
+const TOLERANCE_RATE = 0.1;
+const TIME_LIMIT_SECONDS = 30;
 
 function shuffleArray<T>(items: T[]): T[] {
   const copied = [...items];
@@ -67,6 +70,11 @@ function getResultBoxClassName(isCorrect: boolean): string {
   return "mt-6 rounded-2xl border border-red-600 bg-red-50 p-5 text-red-900";
 }
 
+function isWithinTolerance(answer: number, correct: number, toleranceRate: number): boolean {
+  const margin = correct * toleranceRate;
+  return Math.abs(answer - correct) <= margin;
+}
+
 export default function GamePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -74,12 +82,16 @@ export default function GamePage() {
   const requestedCount = Number(searchParams.get("count") ?? 5);
   const showNameParam = searchParams.get("showName") ?? "true";
   const modeParam = (searchParams.get("mode") ?? "multiple") as GameMode;
+  const allowToleranceParam = searchParams.get("allowTolerance") ?? "true";
+  const timeLimitParam = searchParams.get("timeLimit") ?? "true";
 
   const questionCount =
     Number.isNaN(requestedCount) || requestedCount <= 0 ? 5 : requestedCount;
 
   const showGiftName = showNameParam === "true";
   const gameMode: GameMode = modeParam === "input" ? "input" : "multiple";
+  const allowTolerance = allowToleranceParam === "true";
+  const timeLimitEnabled = timeLimitParam === "true";
 
   const gameGifts = useMemo(() => {
     return shuffleArray(gifts).slice(0, questionCount);
@@ -91,6 +103,7 @@ export default function GamePage() {
   const [resultMessage, setResultMessage] = useState("");
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
   const [inputAnswer, setInputAnswer] = useState("");
+  const [timeLeft, setTimeLeft] = useState(TIME_LIMIT_SECONDS);
 
   const currentGift = gameGifts[currentQuestionIndex];
 
@@ -102,25 +115,45 @@ export default function GamePage() {
     return createChoices(currentGift, gifts);
   }, [currentGift]);
 
+  const currentInputNumber =
+    inputAnswer.trim() === "" ? null : Number(inputAnswer);
+
   const isCurrentAnswerCorrect =
     gameMode === "multiple"
       ? isAnswered && selectedChoice === currentGift?.coin
-      : isAnswered && Number(inputAnswer) === currentGift?.coin;
+      : isAnswered &&
+        currentInputNumber !== null &&
+        currentGift !== undefined &&
+        (allowTolerance
+          ? isWithinTolerance(currentInputNumber, currentGift.coin, TOLERANCE_RATE)
+          : currentInputNumber === currentGift.coin);
 
-  const finishOrMoveNext = (nextIndex: number) => {
-    if (nextIndex >= gameGifts.length) {
-      router.push(
-        `/result?correct=${correctCount}&total=${gameGifts.length}&count=${questionCount}&showName=${showGiftName}&mode=${gameMode}`
-      );
+  useEffect(() => {
+    if (!timeLimitEnabled || isAnswered || !currentGift) {
       return;
     }
 
-    setCurrentQuestionIndex(nextIndex);
-    setIsAnswered(false);
-    setResultMessage("");
-    setSelectedChoice(null);
-    setInputAnswer("");
-  };
+    setTimeLeft(TIME_LIMIT_SECONDS);
+
+    const timerId = window.setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          window.clearInterval(timerId);
+          setResultMessage(
+            `時間切れ。不正解です。正解は ${currentGift.coin} コインです。`
+          );
+          setIsAnswered(true);
+          return 0;
+        }
+
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timerId);
+    };
+  }, [currentQuestionIndex, timeLimitEnabled, isAnswered, currentGift]);
 
   const handleSelectChoice = (selectedCoin: number) => {
     if (isAnswered || !currentGift) {
@@ -154,22 +187,61 @@ export default function GamePage() {
     }
 
     const answerNumber = Number(inputAnswer);
-    const isCorrect = answerNumber === currentGift.coin;
+
+    if (Number.isNaN(answerNumber)) {
+      setResultMessage("数値を入力してください。");
+      return;
+    }
+
+    const isCorrect = allowTolerance
+      ? isWithinTolerance(answerNumber, currentGift.coin, TOLERANCE_RATE)
+      : answerNumber === currentGift.coin;
 
     if (isCorrect) {
       setCorrectCount((prev) => prev + 1);
-      setResultMessage("正解です。");
+
+      if (allowTolerance && answerNumber !== currentGift.coin) {
+        const minValue = Math.ceil(currentGift.coin * (1 - TOLERANCE_RATE));
+        const maxValue = Math.floor(currentGift.coin * (1 + TOLERANCE_RATE));
+        setResultMessage(
+          `正解です。許容範囲（${minValue}〜${maxValue} コイン）内です。`
+        );
+      } else {
+        setResultMessage("正解です。");
+      }
     } else {
-      setResultMessage(
-        `不正解です。正解は ${currentGift.coin} コインです。`
-      );
+      if (allowTolerance) {
+        const minValue = Math.ceil(currentGift.coin * (1 - TOLERANCE_RATE));
+        const maxValue = Math.floor(currentGift.coin * (1 + TOLERANCE_RATE));
+        setResultMessage(
+          `不正解です。正解は ${currentGift.coin} コインです。正解範囲は ${minValue}〜${maxValue} コインです。`
+        );
+      } else {
+        setResultMessage(
+          `不正解です。正解は ${currentGift.coin} コインです。`
+        );
+      }
     }
 
     setIsAnswered(true);
   };
 
   const handleNextQuestion = () => {
-    finishOrMoveNext(currentQuestionIndex + 1);
+    const nextIndex = currentQuestionIndex + 1;
+
+    if (nextIndex >= gameGifts.length) {
+      router.push(
+        `/result?correct=${correctCount}&total=${gameGifts.length}&count=${questionCount}&showName=${showGiftName}&mode=${gameMode}&allowTolerance=${allowTolerance}&timeLimit=${timeLimitEnabled}`
+      );
+      return;
+    }
+
+    setCurrentQuestionIndex(nextIndex);
+    setIsAnswered(false);
+    setResultMessage("");
+    setSelectedChoice(null);
+    setInputAnswer("");
+    setTimeLeft(TIME_LIMIT_SECONDS);
   };
 
   if (gameGifts.length === 0 || !currentGift) {
@@ -204,7 +276,7 @@ export default function GamePage() {
             </h1>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="rounded-full border bg-gray-50 px-4 py-2 text-sm font-medium text-gray-700">
               問題 {currentQuestionIndex + 1} / {gameGifts.length}
             </div>
@@ -212,6 +284,24 @@ export default function GamePage() {
             <div className="rounded-full border bg-gray-50 px-4 py-2 text-sm font-medium text-gray-700">
               {gameMode === "multiple" ? "4択" : "自由入力"}
             </div>
+
+            {gameMode === "input" && allowTolerance && (
+              <div className="rounded-full border bg-gray-50 px-4 py-2 text-sm font-medium text-gray-700">
+                ±10%
+              </div>
+            )}
+
+            {timeLimitEnabled && (
+              <div
+                className={`rounded-full border px-4 py-2 text-sm font-medium ${
+                  timeLeft <= 5
+                    ? "border-red-300 bg-red-50 text-red-700"
+                    : "bg-gray-50 text-gray-700"
+                }`}
+              >
+                残り {timeLeft} 秒
+              </div>
+            )}
 
             <Link
               href="/"
@@ -273,7 +363,14 @@ export default function GamePage() {
           </div>
         ) : (
           <div className="mt-8">
-            <p className="text-sm font-medium text-gray-700">コイン数を入力</p>
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm font-medium text-gray-700">コイン数を入力</p>
+              {allowTolerance && (
+                <span className="rounded-full border bg-gray-50 px-4 py-2 text-xs text-gray-700">
+                  誤差許容: ±10%
+                </span>
+              )}
+            </div>
 
             <div className="mt-4 rounded-2xl border bg-gray-50 p-6">
               <input
@@ -300,6 +397,13 @@ export default function GamePage() {
         {resultMessage !== "" && (
           <div className={getResultBoxClassName(isCurrentAnswerCorrect)}>
             <p className="text-base font-semibold">{resultMessage}</p>
+
+            {!showGiftName && (
+              <p className="mt-2 text-sm">
+                ギフト名:{" "}
+                <span className="font-semibold">{currentGift.name}</span>
+              </p>
+            )}
           </div>
         )}
 
