@@ -1,7 +1,9 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
@@ -59,7 +61,7 @@ function normalizeTikTokUsername(value: string): string | null {
   return trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
 }
 
-export default function ResultPage() {
+function ResultPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -80,10 +82,11 @@ export default function ResultPage() {
   const grade = getGrade(correct, total);
   const comment = getComment(correct, total, playMode);
 
-  const replayHref =
-    playMode === "streak"
+  const replayHref = useMemo(() => {
+    return playMode === "streak"
       ? `/game?playMode=streak&count=${count}&showName=true&mode=input&allowTolerance=true&timeLimit=true`
       : `/game?playMode=normal&count=${count}&showName=${showName}&mode=${mode}&allowTolerance=${allowTolerance}&timeLimit=${timeLimit}`;
+  }, [playMode, count, showName, mode, allowTolerance, timeLimit]);
 
   const rankingHref = "/ranking";
 
@@ -132,7 +135,9 @@ export default function ResultPage() {
       setRankingLoading(false);
 
       if (error) {
-        setRankingError("ランキング判定の取得に失敗しました。");
+        setRankingError(
+          "ランキング判定の取得に失敗しました。時間をおいて再度お試しください。"
+        );
         return;
       }
 
@@ -174,7 +179,7 @@ export default function ResultPage() {
   }, [isRegistered, router]);
 
   const handleSubmitRanking = async () => {
-    if (playMode !== "streak" || !canRegister || isRegistered) {
+    if (playMode !== "streak" || !canRegister || isRegistered || isSubmitting) {
       return;
     }
 
@@ -199,21 +204,36 @@ export default function ResultPage() {
     setIsSubmitting(true);
     setSubmitMessage("");
 
-    const { error } = await supabase.from("streak_rankings").insert({
-      player_name: normalizedPlayerName,
-      tiktok_username: normalizedTikTokUsername,
-      streak_count: targetScore,
-    });
+    try {
+      const response = await fetch("/api/rankings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          playerName: normalizedPlayerName,
+          tiktokUsername: normalizedTikTokUsername,
+          streakCount: targetScore,
+        }),
+      });
 
-    setIsSubmitting(false);
+      if (!response.ok) {
+        setSubmitMessage(
+          "通信エラーが発生しました。時間をおいて再度お試しください。"
+        );
+        setIsSubmitting(false);
+        return;
+      }
 
-    if (error) {
-      setSubmitMessage("通信エラーが発生しました。時間をおいて再度お試しください。");
-      return;
+      setIsRegistered(true);
+      setSubmitMessage("ランキングに登録しました。ランキング画面へ移動します。");
+    } catch {
+      setSubmitMessage(
+        "通信エラーが発生しました。時間をおいて再度お試しください。"
+      );
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setIsRegistered(true);
-    setSubmitMessage("ランキングに登録しました（上位入り）。ランキング画面へ移動します。");
   };
 
   return (
@@ -329,7 +349,11 @@ export default function ResultPage() {
                     disabled={isSubmitting || isRegistered}
                     className="rounded-xl bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
                   >
-                    {isSubmitting ? "登録中..." : isRegistered ? "登録済み" : "ランキング登録"}
+                    {isSubmitting
+                      ? "登録中..."
+                      : isRegistered
+                        ? "登録済み"
+                        : "ランキング登録"}
                   </button>
 
                   {submitMessage !== "" && (
@@ -411,5 +435,21 @@ export default function ResultPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function ResultPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-gray-50 px-6 py-10">
+          <div className="mx-auto max-w-3xl rounded-3xl border bg-white p-8 shadow-sm">
+            <p className="text-gray-700">読み込み中です。</p>
+          </div>
+        </main>
+      }
+    >
+      <ResultPageContent />
+    </Suspense>
   );
 }
