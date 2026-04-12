@@ -7,9 +7,11 @@ import { gifts } from "../../data/gifts";
 import { Gift } from "../../types/gift";
 
 type GameMode = "multiple" | "input";
+type PlayMode = "normal" | "streak";
 
 const TOLERANCE_RATE = 0.1;
 const TIME_LIMIT_SECONDS = 30;
+const STREAK_QUESTION_LIMIT = 9999;
 
 function shuffleArray<T>(items: T[]): T[] {
   const copied = [...items];
@@ -79,26 +81,43 @@ export default function GamePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const playModeParam = (searchParams.get("playMode") ?? "normal") as PlayMode;
   const requestedCount = Number(searchParams.get("count") ?? 5);
   const showNameParam = searchParams.get("showName") ?? "true";
   const modeParam = (searchParams.get("mode") ?? "multiple") as GameMode;
   const allowToleranceParam = searchParams.get("allowTolerance") ?? "true";
   const timeLimitParam = searchParams.get("timeLimit") ?? "true";
 
+  const playMode: PlayMode = playModeParam === "streak" ? "streak" : "normal";
   const questionCount =
-    Number.isNaN(requestedCount) || requestedCount <= 0 ? 5 : requestedCount;
+    playMode === "streak"
+      ? STREAK_QUESTION_LIMIT
+      : Number.isNaN(requestedCount) || requestedCount <= 0
+        ? 5
+        : requestedCount;
 
-  const showGiftName = showNameParam === "true";
-  const gameMode: GameMode = modeParam === "input" ? "input" : "multiple";
-  const allowTolerance = allowToleranceParam === "true";
-  const timeLimitEnabled = timeLimitParam === "true";
+  const showGiftName = playMode === "streak" ? true : showNameParam === "true";
+  const gameMode: GameMode =
+    playMode === "streak"
+      ? "input"
+      : modeParam === "input"
+        ? "input"
+        : "multiple";
+  const allowTolerance =
+    playMode === "streak" ? true : allowToleranceParam === "true";
+  const timeLimitEnabled =
+    playMode === "streak" ? true : timeLimitParam === "true";
 
   const gameGifts = useMemo(() => {
+    if (playMode === "streak") {
+      return shuffleArray(gifts);
+    }
     return shuffleArray(gifts).slice(0, questionCount);
-  }, [questionCount]);
+  }, [questionCount, playMode]);
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [correctCount, setCorrectCount] = useState(0);
+  const [streakCount, setStreakCount] = useState(0);
   const [isAnswered, setIsAnswered] = useState(false);
   const [resultMessage, setResultMessage] = useState("");
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
@@ -155,6 +174,15 @@ export default function GamePage() {
     };
   }, [currentQuestionIndex, timeLimitEnabled, isAnswered, currentGift]);
 
+  const finishGame = () => {
+    const totalForResult =
+      playMode === "streak" ? streakCount + 1 : gameGifts.length;
+
+    router.push(
+      `/result?playMode=${playMode}&correct=${correctCount}&total=${totalForResult}&count=${requestedCount}&showName=${showGiftName}&mode=${gameMode}&allowTolerance=${allowTolerance}&timeLimit=${timeLimitEnabled}&streak=${streakCount}`
+    );
+  };
+
   const handleSelectChoice = (selectedCoin: number) => {
     if (isAnswered || !currentGift) {
       return;
@@ -166,6 +194,9 @@ export default function GamePage() {
 
     if (isCorrect) {
       setCorrectCount((prev) => prev + 1);
+      if (playMode === "streak") {
+        setStreakCount((prev) => prev + 1);
+      }
       setResultMessage("正解です。");
     } else {
       setResultMessage(
@@ -199,6 +230,9 @@ export default function GamePage() {
 
     if (isCorrect) {
       setCorrectCount((prev) => prev + 1);
+      if (playMode === "streak") {
+        setStreakCount((prev) => prev + 1);
+      }
 
       if (allowTolerance && answerNumber !== currentGift.coin) {
         const minValue = Math.ceil(currentGift.coin * (1 - TOLERANCE_RATE));
@@ -227,12 +261,15 @@ export default function GamePage() {
   };
 
   const handleNextQuestion = () => {
+    if (playMode === "streak" && !isCurrentAnswerCorrect) {
+      finishGame();
+      return;
+    }
+
     const nextIndex = currentQuestionIndex + 1;
 
     if (nextIndex >= gameGifts.length) {
-      router.push(
-        `/result?correct=${correctCount}&total=${gameGifts.length}&count=${questionCount}&showName=${showGiftName}&mode=${gameMode}&allowTolerance=${allowTolerance}&timeLimit=${timeLimitEnabled}`
-      );
+      finishGame();
       return;
     }
 
@@ -272,14 +309,22 @@ export default function GamePage() {
           <div>
             <p className="text-sm font-medium text-gray-500">ゲーム中</p>
             <h1 className="mt-1 text-2xl font-bold text-gray-900">
-              このギフトのコイン数は？
+              {playMode === "streak"
+                ? "連続ランキングモード"
+                : "このギフトのコイン数は？"}
             </h1>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <div className="rounded-full border bg-gray-50 px-4 py-2 text-sm font-medium text-gray-700">
-              問題 {currentQuestionIndex + 1} / {gameGifts.length}
-            </div>
+            {playMode === "normal" ? (
+              <div className="rounded-full border bg-gray-50 px-4 py-2 text-sm font-medium text-gray-700">
+                問題 {currentQuestionIndex + 1} / {gameGifts.length}
+              </div>
+            ) : (
+              <div className="rounded-full border bg-gray-50 px-4 py-2 text-sm font-medium text-gray-700">
+                連続正解数 {streakCount}
+              </div>
+            )}
 
             <div className="rounded-full border bg-gray-50 px-4 py-2 text-sm font-medium text-gray-700">
               {gameMode === "multiple" ? "4択" : "自由入力"}
@@ -325,15 +370,9 @@ export default function GamePage() {
             </div>
           </div>
 
-          {showGiftName ? (
-            <p className="mt-5 text-3xl font-bold text-gray-900">
-              {currentGift.name}
-            </p>
-          ) : (
-            <p className="mt-5 text-sm font-medium text-gray-500">
-              ギフト名は非表示です
-            </p>
-          )}
+          <p className="mt-5 text-3xl font-bold text-gray-900">
+            {currentGift.name}
+          </p>
         </div>
 
         {gameMode === "multiple" ? (
@@ -397,20 +436,22 @@ export default function GamePage() {
         {resultMessage !== "" && (
           <div className={getResultBoxClassName(isCurrentAnswerCorrect)}>
             <p className="text-base font-semibold">{resultMessage}</p>
-
-            {!showGiftName && (
-              <p className="mt-2 text-sm">
-                ギフト名:{" "}
-                <span className="font-semibold">{currentGift.name}</span>
-              </p>
-            )}
           </div>
         )}
 
         <div className="mt-8 flex items-center justify-between gap-4">
           <div className="rounded-xl border bg-gray-50 px-4 py-3 text-sm text-gray-700">
-            現在の正解数:{" "}
-            <span className="font-bold text-gray-900">{correctCount}</span>
+            {playMode === "streak" ? (
+              <>
+                現在の連続正解数:{" "}
+                <span className="font-bold text-gray-900">{streakCount}</span>
+              </>
+            ) : (
+              <>
+                現在の正解数:{" "}
+                <span className="font-bold text-gray-900">{correctCount}</span>
+              </>
+            )}
           </div>
 
           {isAnswered && (
@@ -418,9 +459,11 @@ export default function GamePage() {
               onClick={handleNextQuestion}
               className="rounded-xl bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
             >
-              {currentQuestionIndex + 1 >= gameGifts.length
+              {playMode === "streak" && !isCurrentAnswerCorrect
                 ? "結果を見る"
-                : "次の問題へ"}
+                : currentQuestionIndex + 1 >= gameGifts.length
+                  ? "結果を見る"
+                  : "次の問題へ"}
             </button>
           )}
         </div>

@@ -4,23 +4,39 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 type GameMode = "multiple" | "input";
+type PlayMode = "normal" | "streak";
 
 export default function Home() {
+  const [playMode, setPlayMode] = useState<PlayMode>("normal");
   const [questionCount, setQuestionCount] = useState(5);
   const [showGiftName, setShowGiftName] = useState(true);
   const [gameMode, setGameMode] = useState<GameMode>("multiple");
   const [allowTolerance, setAllowTolerance] = useState(true);
   const [timeLimitEnabled, setTimeLimitEnabled] = useState(true);
 
-  const settingLabel = useMemo(() => {
-    return `${questionCount}問モード`;
-  }, [questionCount]);
+  const effectiveShowGiftName = playMode === "streak" ? true : showGiftName;
+  const effectiveGameMode: GameMode =
+    playMode === "streak" ? "input" : gameMode;
+  const effectiveAllowTolerance =
+    playMode === "streak" ? true : allowTolerance;
+  const effectiveTimeLimitEnabled =
+    playMode === "streak" ? true : timeLimitEnabled;
 
-  const displayModeLabel = showGiftName ? "ギフト名あり" : "ギフト名なし";
+  const settingLabel = useMemo(() => {
+    return playMode === "streak"
+      ? "連続ランキングモード"
+      : `${questionCount}問モード`;
+  }, [playMode, questionCount]);
+
+  const displayModeLabel = effectiveShowGiftName ? "あり" : "なし";
   const answerModeLabel =
-    gameMode === "multiple" ? "4択形式" : "自由入力形式";
-  const toleranceLabel = allowTolerance ? "誤差許容あり（±10%）" : "誤差許容なし";
-  const timeLimitLabel = timeLimitEnabled ? "時間制限あり（30秒）" : "時間制限なし";
+    effectiveGameMode === "multiple" ? "4択形式" : "自由入力形式";
+  const toleranceLabel = effectiveAllowTolerance
+    ? "誤差許容あり（±10%）"
+    : "誤差許容なし";
+  const timeLimitLabel = effectiveTimeLimitEnabled
+    ? "時間制限あり（30秒）"
+    : "時間制限なし";
 
   return (
     <main className="min-h-screen bg-gray-50 px-6 py-10">
@@ -34,23 +50,49 @@ export default function Home() {
               ギフトコイン当てゲーム
             </h1>
             <p className="mt-4 text-gray-700">
-              表示されたギフトを見て、コイン数を当てるゲームです。
+              表示されたギフトのコイン数を当てるシンプルなゲームです。
             </p>
           </header>
 
           <section className="mt-8 grid gap-6 md:grid-cols-2">
-            <div className="rounded-2xl border bg-gray-50 p-6">
-              <h2 className="text-lg font-semibold text-gray-900">ルール</h2>
+            <div className="space-y-6">
+              <div className="rounded-2xl border bg-gray-50 p-6">
+                <h2 className="text-lg font-semibold text-gray-900">ルール</h2>
 
-              <ul className="mt-4 space-y-3 text-sm text-gray-700">
-                <li>・ギフト画像を見てコイン数を予想します</li>
-                <li>・ギフト名の表示有無を選べます</li>
-                <li>・回答形式は4択と自由入力から選べます</li>
-                <li>・ギフト名なしモードでは、回答後にギフト名が表示されます</li>
-                <li>・自由入力では誤差許容設定を有効にできます</li>
-                <li>・時間制限ONで1問30秒になります</li>
-                <li>・最後に正解数とスコアを確認できます</li>
-              </ul>
+                <ul className="mt-4 space-y-3 text-sm text-gray-700">
+                  <li>・通常モードでは出題数や表示設定を選べます</li>
+                  <li>・連続ランキングモードでは間違えるまで続きます</li>
+                  <li>
+                    ・連続ランキングモードは自由入力、誤差許容あり、時間制限ありで固定です
+                  </li>
+                  <li>・時間制限ONでは1問30秒です</li>
+                  <li>・最後に結果を確認できます</li>
+                </ul>
+              </div>
+
+              <div className="rounded-2xl border bg-gray-50 p-6">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  ランキング
+                </h2>
+
+                <div className="mt-4">
+                  <p className="text-sm font-medium text-gray-900">
+                    連続ランキング
+                  </p>
+                  <p className="mt-2 text-sm text-gray-700">
+                    連続正解数の上位100件を確認できます。
+                  </p>
+
+                  <div className="mt-4">
+                    <Link
+                      href="/ranking"
+                      className="block rounded-xl border border-gray-300 bg-white px-5 py-3 text-center text-sm font-medium text-gray-800 transition hover:bg-gray-50"
+                    >
+                      ランキングを見る
+                    </Link>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="rounded-2xl border p-6">
@@ -63,183 +105,212 @@ export default function Home() {
                 <p className="mt-2 text-xl font-bold text-gray-900">
                   {settingLabel}
                 </p>
-                <p className="mt-2 text-sm text-gray-700">{displayModeLabel}</p>
-                <p className="mt-1 text-sm text-gray-700">{answerModeLabel}</p>
+                <p className="mt-2 text-sm text-gray-700">
+                  ギフト名表示: {displayModeLabel}
+                </p>
                 <p className="mt-1 text-sm text-gray-700">
-                  {gameMode === "input" ? toleranceLabel : "誤差許容: 4択では未使用"}
+                  回答形式: {answerModeLabel}
+                </p>
+                <p className="mt-1 text-sm text-gray-700">
+                  {effectiveGameMode === "input"
+                    ? toleranceLabel
+                    : "誤差許容: 4択では未使用"}
                 </p>
                 <p className="mt-1 text-sm text-gray-700">{timeLimitLabel}</p>
               </div>
 
               <div className="mt-5">
-                <p className="text-sm font-medium text-gray-700">問題数</p>
+                <p className="text-sm font-medium text-gray-700">モード</p>
 
                 <div className="mt-3 flex gap-3">
                   <button
                     type="button"
-                    onClick={() => setQuestionCount(5)}
+                    onClick={() => setPlayMode("normal")}
                     className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
-                      questionCount === 5
+                      playMode === "normal"
                         ? "border-black bg-black text-white"
                         : "border-gray-300 bg-white text-gray-800 hover:bg-gray-50"
                     }`}
                   >
-                    5問
+                    通常
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => setQuestionCount(10)}
+                    onClick={() => setPlayMode("streak")}
                     className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
-                      questionCount === 10
+                      playMode === "streak"
                         ? "border-black bg-black text-white"
                         : "border-gray-300 bg-white text-gray-800 hover:bg-gray-50"
                     }`}
                   >
-                    10問
+                    連続ランキング
                   </button>
                 </div>
               </div>
 
-              <div className="mt-6">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">
-                      ギフト名表示
-                    </p>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {showGiftName
-                        ? "ギフト名を表示します"
-                        : "回答後にギフト名を表示します"}
-                    </p>
+              {playMode === "normal" && (
+                <>
+                  <div className="mt-6">
+                    <p className="text-sm font-medium text-gray-700">問題数</p>
+
+                    <div className="mt-3 flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setQuestionCount(5)}
+                        className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
+                          questionCount === 5
+                            ? "border-black bg-black text-white"
+                            : "border-gray-300 bg-white text-gray-800 hover:bg-gray-50"
+                        }`}
+                      >
+                        5問
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setQuestionCount(10)}
+                        className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
+                          questionCount === 10
+                            ? "border-black bg-black text-white"
+                            : "border-gray-300 bg-white text-gray-800 hover:bg-gray-50"
+                        }`}
+                      >
+                        10問
+                      </button>
+                    </div>
                   </div>
 
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={showGiftName}
-                    onClick={() => setShowGiftName((prev) => !prev)}
-                    className={`relative inline-flex h-7 w-14 items-center rounded-full transition ${
-                      showGiftName ? "bg-black" : "bg-gray-300"
-                    }`}
-                  >
-                    <span className="sr-only">ギフト名表示切り替え</span>
-                    <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
-                        showGiftName ? "translate-x-8" : "translate-x-1"
-                      }`}
-                    />
-                  </button>
-                </div>
+                  <div className="mt-6">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-medium text-gray-700">
+                          ギフト名表示
+                        </p>
+                        <p className="mt-1 text-sm text-gray-500">
+                          {showGiftName
+                            ? "ギフト名を表示します"
+                            : "回答後にギフト名を表示します"}
+                        </p>
+                      </div>
 
-                <div className="mt-3">
-                  <span className="rounded-full border bg-white px-4 py-2 text-sm text-gray-700">
-                    {displayModeLabel}
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-6">
-                <p className="text-sm font-medium text-gray-700">回答形式</p>
-
-                <div className="mt-3 flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setGameMode("multiple")}
-                    className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
-                      gameMode === "multiple"
-                        ? "border-black bg-black text-white"
-                        : "border-gray-300 bg-white text-gray-800 hover:bg-gray-50"
-                    }`}
-                  >
-                    4択
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setGameMode("input")}
-                    className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
-                      gameMode === "input"
-                        ? "border-black bg-black text-white"
-                        : "border-gray-300 bg-white text-gray-800 hover:bg-gray-50"
-                    }`}
-                  >
-                    自由入力
-                  </button>
-                </div>
-              </div>
-
-              <div className="mt-6">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">
-                      誤差許容
-                    </p>
-                    <p className="mt-1 text-sm text-gray-500">
-                      自由入力時のみ有効です
-                    </p>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={showGiftName}
+                        onClick={() => setShowGiftName((prev) => !prev)}
+                        className={`relative inline-flex h-7 w-14 items-center rounded-full transition ${
+                          showGiftName ? "bg-black" : "bg-gray-300"
+                        }`}
+                      >
+                        <span className="sr-only">ギフト名表示切り替え</span>
+                        <span
+                          className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
+                            showGiftName ? "translate-x-8" : "translate-x-1"
+                          }`}
+                        />
+                      </button>
+                    </div>
                   </div>
 
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={allowTolerance}
-                    onClick={() => setAllowTolerance((prev) => !prev)}
-                    className={`relative inline-flex h-7 w-14 items-center rounded-full transition ${
-                      allowTolerance ? "bg-black" : "bg-gray-300"
-                    } ${gameMode !== "input" ? "opacity-50" : ""}`}
-                  >
-                    <span className="sr-only">誤差許容切り替え</span>
-                    <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
-                        allowTolerance ? "translate-x-8" : "translate-x-1"
-                      }`}
-                    />
-                  </button>
-                </div>
+                  <div className="mt-6">
+                    <p className="text-sm font-medium text-gray-700">回答形式</p>
 
-                <div className="mt-3">
-                  <span className="rounded-full border bg-white px-4 py-2 text-sm text-gray-700">
-                    {gameMode === "input" ? toleranceLabel : "4択では未使用"}
-                  </span>
-                </div>
-              </div>
+                    <div className="mt-3 flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setGameMode("multiple")}
+                        className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
+                          gameMode === "multiple"
+                            ? "border-black bg-black text-white"
+                            : "border-gray-300 bg-white text-gray-800 hover:bg-gray-50"
+                        }`}
+                      >
+                        4択
+                      </button>
 
-              <div className="mt-6">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">
-                      時間制限
-                    </p>
-                    <p className="mt-1 text-sm text-gray-500">
-                      ONで1問30秒制限です
-                    </p>
+                      <button
+                        type="button"
+                        onClick={() => setGameMode("input")}
+                        className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
+                          gameMode === "input"
+                            ? "border-black bg-black text-white"
+                            : "border-gray-300 bg-white text-gray-800 hover:bg-gray-50"
+                        }`}
+                      >
+                        自由入力
+                      </button>
+                    </div>
                   </div>
 
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={timeLimitEnabled}
-                    onClick={() => setTimeLimitEnabled((prev) => !prev)}
-                    className={`relative inline-flex h-7 w-14 items-center rounded-full transition ${
-                      timeLimitEnabled ? "bg-black" : "bg-gray-300"
-                    }`}
-                  >
-                    <span className="sr-only">時間制限切り替え</span>
-                    <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
-                        timeLimitEnabled ? "translate-x-8" : "translate-x-1"
-                      }`}
-                    />
-                  </button>
-                </div>
+                  <div className="mt-6">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-medium text-gray-700">
+                          誤差許容
+                        </p>
+                        <p className="mt-1 text-sm text-gray-500">
+                          自由入力時のみ有効です
+                        </p>
+                      </div>
 
-                <div className="mt-3">
-                  <span className="rounded-full border bg-white px-4 py-2 text-sm text-gray-700">
-                    {timeLimitLabel}
-                  </span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={allowTolerance}
+                        onClick={() => setAllowTolerance((prev) => !prev)}
+                        className={`relative inline-flex h-7 w-14 items-center rounded-full transition ${
+                          allowTolerance ? "bg-black" : "bg-gray-300"
+                        } ${gameMode !== "input" ? "opacity-50" : ""}`}
+                      >
+                        <span className="sr-only">誤差許容切り替え</span>
+                        <span
+                          className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
+                            allowTolerance ? "translate-x-8" : "translate-x-1"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-6">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-medium text-gray-700">
+                          時間制限
+                        </p>
+                        <p className="mt-1 text-sm text-gray-500">
+                          ONで1問30秒制限です
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={timeLimitEnabled}
+                        onClick={() => setTimeLimitEnabled((prev) => !prev)}
+                        className={`relative inline-flex h-7 w-14 items-center rounded-full transition ${
+                          timeLimitEnabled ? "bg-black" : "bg-gray-300"
+                        }`}
+                      >
+                        <span className="sr-only">時間制限切り替え</span>
+                        <span
+                          className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
+                            timeLimitEnabled ? "translate-x-8" : "translate-x-1"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {playMode === "streak" && (
+                <div className="mt-6 rounded-xl border bg-gray-50 p-4 text-sm text-gray-700">
+                  連続ランキングモードでは以下で固定です。<br />
+                  ギフト名表示: あり / 回答形式: 自由入力 / 誤差許容: あり / 時間制限: あり
                 </div>
-              </div>
+              )}
             </div>
           </section>
 
@@ -247,15 +318,20 @@ export default function Home() {
             <h2 className="text-lg font-semibold text-gray-900">開始前の確認</h2>
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <span className="rounded-full border bg-white px-4 py-2 text-sm text-gray-700">
-                出題数: {questionCount}問
+                モード: {playMode === "normal" ? "通常" : "連続ランキング"}
               </span>
+              {playMode === "normal" && (
+                <span className="rounded-full border bg-white px-4 py-2 text-sm text-gray-700">
+                  出題数: {questionCount}問
+                </span>
+              )}
               <span className="rounded-full border bg-white px-4 py-2 text-sm text-gray-700">
-                表示: {displayModeLabel}
+                ギフト名表示: {displayModeLabel}
               </span>
               <span className="rounded-full border bg-white px-4 py-2 text-sm text-gray-700">
                 回答形式: {answerModeLabel}
               </span>
-              {gameMode === "input" && (
+              {effectiveGameMode === "input" && (
                 <span className="rounded-full border bg-white px-4 py-2 text-sm text-gray-700">
                   {toleranceLabel}
                 </span>
@@ -267,10 +343,10 @@ export default function Home() {
 
             <div className="mt-6">
               <Link
-                href={`/game?count=${questionCount}&showName=${showGiftName}&mode=${gameMode}&allowTolerance=${allowTolerance}&timeLimit=${timeLimitEnabled}`}
+                href={`/game?playMode=${playMode}&count=${questionCount}&showName=${effectiveShowGiftName}&mode=${effectiveGameMode}&allowTolerance=${effectiveAllowTolerance}&timeLimit=${effectiveTimeLimitEnabled}`}
                 className="block rounded-xl bg-black px-5 py-3 text-center text-sm font-medium text-white transition hover:opacity-90"
               >
-                {questionCount}問でゲーム開始
+                ゲーム開始
               </Link>
             </div>
           </section>
