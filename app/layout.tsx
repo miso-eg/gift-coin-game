@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "TikTokギフトのコイン数を当てるゲーム",
 };
 
-const APP_VERSION = "Ver：2026/04/12-1";
+const APP_VERSION = "Ver：2026/04/19-1";
 const APP_CREDIT = "作成：みそ🎨🐾 @miso_eg";
 
 export default function RootLayout({
