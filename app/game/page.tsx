@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -313,7 +311,7 @@ function GamePageContent() {
           <div>
             <p className="text-sm font-medium text-gray-500">ゲーム中</p>
             <h1 className="mt-1 text-2xl font-bold text-gray-900">
-              {playMode === "streak" ? "連続ランキングモード" : "このギフトのコイン数は？"}
+              {playMode === "streak" ? "連続チャレンジモード" : "このギフトのコイン数は？"}
             </h1>
           </div>
 
@@ -365,7 +363,7 @@ function GamePageContent() {
           <div className="mt-5 flex justify-center">
             <div className="flex h-48 w-48 items-center justify-center rounded-2xl bg-white p-4 shadow-sm">
               <img
-                src={currentGift.imageUrl}
+                src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}${currentGift.imageUrl}`}
                 alt={currentGift.name}
                 className="max-h-full max-w-full object-contain"
               />

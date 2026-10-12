@@ -24,7 +24,7 @@ export default function Home() {
 
   const settingLabel = useMemo(() => {
     return playMode === "streak"
-      ? "連続ランキングモード"
+      ? "連続チャレンジモード"
       : `${questionCount}問モード`;
   }, [playMode, questionCount]);
 
@@ -61,37 +61,13 @@ export default function Home() {
 
                 <ul className="mt-4 space-y-3 text-sm text-gray-700">
                   <li>・通常モードでは出題数や表示設定を選べます</li>
-                  <li>・連続ランキングモードでは間違えるまで続きます</li>
+                  <li>・連続チャレンジモードでは間違えるまで続きます</li>
                   <li>
-                    ・連続ランキングモードは自由入力、誤差許容あり、時間制限ありで固定です
+                    ・連続チャレンジモードは自由入力、誤差許容あり、時間制限ありで固定です
                   </li>
                   <li>・時間制限ONでは1問30秒です</li>
                   <li>・最後に結果を確認できます</li>
                 </ul>
-              </div>
-
-              <div className="rounded-2xl border bg-gray-50 p-6">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  ランキング
-                </h2>
-
-                <div className="mt-4">
-                  <p className="text-sm font-medium text-gray-900">
-                    連続ランキング
-                  </p>
-                  <p className="mt-2 text-sm text-gray-700">
-                    連続正解数の上位100件を確認できます。
-                  </p>
-
-                  <div className="mt-4">
-                    <Link
-                      href="/ranking"
-                      className="block rounded-xl border border-gray-300 bg-white px-5 py-3 text-center text-sm font-medium text-gray-800 transition hover:bg-gray-50"
-                    >
-                      ランキングを見る
-                    </Link>
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -144,7 +120,7 @@ export default function Home() {
                         : "border-gray-300 bg-white text-gray-800 hover:bg-gray-50"
                     }`}
                   >
-                    連続ランキング
+                    連続チャレンジ
                   </button>
                 </div>
               </div>
@@ -307,7 +283,7 @@ export default function Home() {
 
               {playMode === "streak" && (
                 <div className="mt-6 rounded-xl border bg-gray-50 p-4 text-sm text-gray-700">
-                  連続ランキングモードでは以下で固定です。<br />
+                  連続チャレンジモードでは以下で固定です。<br />
                   ギフト名表示: あり / 回答形式: 自由入力 / 誤差許容: あり / 時間制限: あり
                 </div>
               )}
@@ -318,7 +294,7 @@ export default function Home() {
             <h2 className="text-lg font-semibold text-gray-900">開始前の確認</h2>
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <span className="rounded-full border bg-white px-4 py-2 text-sm text-gray-700">
-                モード: {playMode === "normal" ? "通常" : "連続ランキング"}
+                モード: {playMode === "normal" ? "通常" : "連続チャレンジ"}
               </span>
               {playMode === "normal" && (
                 <span className="rounded-full border bg-white px-4 py-2 text-sm text-gray-700">
