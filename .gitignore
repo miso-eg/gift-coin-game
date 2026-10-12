@@ -33,6 +33,12 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# Raw TikTok responses may contain room/user metadata.
+/gift_json.txt
+/.privacy-tools/
+/.privacy-mailmap
+/.pages-admin.cjs
+
 # vercel
 .vercel
 
